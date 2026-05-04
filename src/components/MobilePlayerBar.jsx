@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { useStore } from '../store/useStore';
 import { formatTime } from '../utils/fileLoader';
 import {
@@ -6,10 +6,41 @@ import {
   Shuffle, Repeat, Repeat1, ChevronDown, ListMusic,
 } from 'lucide-react';
 
-const COLORS = ['#6c63ff','#ff6584','#43e97b','#f7971e','#12c2e9'];
+const COLORS = ['#6c63ff', '#ff6584', '#43e97b', '#f7971e', '#12c2e9'];
+const getColor = (str) => COLORS[(str || '').charCodeAt(0) % COLORS.length];
 
-// ── Touch-friendly seek bar ────────────────────────────────────────────────
-function MobileSeekBar({ progress, duration, compact }) {
+// ── Cover art ──────────────────────────────────────────────────────────────
+function Cover({ track, size }) {
+  if (!track) {
+    return (
+      <img src="/kryptunes.PNG" alt="K"
+        style={{ width: size, height: size, borderRadius: size > 60 ? 16 : 8,
+          objectFit: 'cover', flexShrink: 0 }} />
+    );
+  }
+  const color = getColor(track.title);
+  if (track.cover) {
+    return (
+      <img src={track.cover} alt=""
+        style={{ width: size, height: size, borderRadius: size > 60 ? 16 : 8,
+          objectFit: 'cover', flexShrink: 0 }} />
+    );
+  }
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: size > 60 ? 16 : 8,
+      flexShrink: 0,
+      background: `linear-gradient(135deg, ${color}55, ${color}22)`,
+      border: `1px solid ${color}44`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <span style={{ fontSize: size * 0.38, color }}>♪</span>
+    </div>
+  );
+}
+
+// ── Touch seek bar ─────────────────────────────────────────────────────────
+function TouchSeekBar({ progress, duration, compact }) {
   const { audioRef } = useStore();
   const barRef = useRef(null);
   const touching = useRef(false);
@@ -25,40 +56,34 @@ function MobileSeekBar({ progress, duration, compact }) {
     return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
   }, []);
 
-  const onTouchStart = useCallback((e) => {
-    touching.current = true;
-    setLocalPct(getPct(e.touches[0].clientX) * 100);
-  }, [getPct]);
-
-  const onTouchMove = useCallback((e) => {
-    if (!touching.current) return;
-    e.preventDefault();
-    setLocalPct(getPct(e.touches[0].clientX) * 100);
-  }, [getPct]);
-
-  const onTouchEnd = useCallback((e) => {
-    if (!touching.current) return;
-    touching.current = false;
-    const p = getPct(e.changedTouches[0].clientX);
-    setLocalPct(null);
+  const seek = (pctVal) => {
     const audio = audioRef?.current;
-    if (audio && duration) audio.currentTime = p * duration;
-  }, [audioRef, duration, getPct]);
+    if (audio && duration) audio.currentTime = pctVal * duration;
+  };
 
   return (
-    <div
-      ref={barRef}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+    <div ref={barRef}
+      onTouchStart={e => {
+        touching.current = true;
+        setLocalPct(getPct(e.touches[0].clientX) * 100);
+      }}
+      onTouchMove={e => {
+        if (!touching.current) return;
+        e.preventDefault();
+        setLocalPct(getPct(e.touches[0].clientX) * 100);
+      }}
+      onTouchEnd={e => {
+        if (!touching.current) return;
+        touching.current = false;
+        seek(getPct(e.changedTouches[0].clientX));
+        setLocalPct(null);
+      }}
       style={{
         position: 'relative',
-        height: compact ? 2 : 4,
-        background: 'rgba(255,255,255,0.15)',
-        borderRadius: 4,
-        width: '100%',
-        flexShrink: 0,
-        touchAction: 'none',
+        height: compact ? 3 : 5,
+        background: 'rgba(255,255,255,0.12)',
+        borderRadius: 4, width: '100%', flexShrink: 0,
+        touchAction: 'none', cursor: 'pointer',
       }}
     >
       <div style={{
@@ -70,211 +95,164 @@ function MobileSeekBar({ progress, duration, compact }) {
       {!compact && (
         <div style={{
           position: 'absolute', top: '50%',
-          left: `clamp(0px, calc(${pct}% - 8px), calc(100% - 16px))`,
+          left: `clamp(0px, calc(${pct}% - 10px), calc(100% - 20px))`,
           transform: 'translateY(-50%)',
-          width: 16, height: 16,
-          borderRadius: '50%', background: '#fff',
-          boxShadow: '0 0 8px rgba(108,99,255,0.9)',
+          width: 20, height: 20, borderRadius: '50%',
+          background: '#fff', boxShadow: '0 0 10px rgba(108,99,255,0.8)',
         }} />
       )}
     </div>
   );
 }
 
-// ── Cover thumbnail ────────────────────────────────────────────────────────
-function MiniCover({ track, size }) {
-  if (!track) {
-    return (
-      <img src="/kryptunes.PNG" alt="K"
-        style={{ width: size, height: size, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
-    );
-  }
-  const color = COLORS[track.title.charCodeAt(0) % COLORS.length];
-  if (track.cover) {
-    return (
-      <img src={track.cover} alt=""
-        style={{ width: size, height: size, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
-    );
-  }
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: 8, flexShrink: 0,
-      background: `linear-gradient(135deg, ${color}55, ${color}22)`,
-      border: `1px solid ${color}44`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <span style={{ fontSize: size * 0.38, color }}>♪</span>
-    </div>
-  );
-}
-
-// ── Full-screen expanded player sheet ─────────────────────────────────────
-function ExpandedSheet({ analyserRef, onCollapse }) {
+// ── Expanded full-screen sheet ─────────────────────────────────────────────
+function ExpandedSheet({ onClose }) {
   const {
     currentTrack, isPlaying, progress, duration,
-    shuffle, repeat, togglePlay, nextTrack, prevTrack,
+    shuffle, repeat,
+    togglePlay, nextTrack, prevTrack,
     toggleShuffle, toggleRepeat, setActiveView,
   } = useStore();
 
-  const color = currentTrack
-    ? COLORS[currentTrack.title.charCodeAt(0) % COLORS.length]
-    : '#6c63ff';
+  const color = getColor(currentTrack?.title);
+
+  // Swipe-down to close
+  const touchStartY = useRef(null);
 
   return (
-    <div style={ex.sheet}>
-      {/* Drag handle pill */}
-      <div style={ex.pill} />
+    <div
+      style={ex.backdrop}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={ex.sheet}
+        onTouchStart={e => { touchStartY.current = e.touches[0].clientY; }}
+        onTouchEnd={e => {
+          if (touchStartY.current === null) return;
+          const dy = e.changedTouches[0].clientY - touchStartY.current;
+          if (dy > 60) onClose();
+          touchStartY.current = null;
+        }}
+      >
+        {/* Pill */}
+        <div style={ex.pill} />
 
-      {/* Top row */}
-      <div style={ex.topRow}>
-        <button onClick={onCollapse} style={ex.collapseBtn}>
-          <ChevronDown size={22} />
-        </button>
-        <span style={ex.nowPlaying}>NOW PLAYING</span>
-        <button
-          onClick={() => { setActiveView('queue'); onCollapse(); }}
-          style={ex.queueBtn}
-        >
-          <ListMusic size={20} />
-        </button>
-      </div>
-
-      {/* Big cover */}
-      <div style={ex.coverWrap}>
-        <MiniCover track={currentTrack} size={220} />
-        {/* Glow halo */}
-        <div style={{
-          ...ex.glow,
-          background: `radial-gradient(ellipse at center, ${color}33 0%, transparent 70%)`,
-        }} />
-      </div>
-
-      {/* Track info */}
-      <div style={ex.info}>
-        {currentTrack ? (
-          <>
-            <div style={ex.title}>{currentTrack.title}</div>
-            <div style={ex.artist}>{currentTrack.artist}</div>
-          </>
-        ) : (
-          <div style={ex.artist}>No track loaded</div>
-        )}
-      </div>
-
-      {/* Seek */}
-      <div style={ex.seekWrap}>
-        <MobileSeekBar progress={progress} duration={duration} compact={false} />
-        <div style={ex.timeRow}>
-          <span className="mono" style={ex.time}>{formatTime(progress)}</span>
-          <span className="mono" style={ex.time}>{formatTime(duration)}</span>
+        {/* Top row */}
+        <div style={ex.topRow}>
+          <button onClick={onClose} style={ex.iconBtn}>
+            <ChevronDown size={22} />
+          </button>
+          <span style={ex.label}>NOW PLAYING</span>
+          <button
+            onClick={() => { setActiveView('queue'); onClose(); }}
+            style={ex.iconBtn}
+          >
+            <ListMusic size={20} />
+          </button>
         </div>
-      </div>
 
-      {/* Controls */}
-      <div style={ex.controls}>
-        <button onClick={toggleShuffle}
-          style={{ ...ex.iconBtn, color: shuffle ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
-          <Shuffle size={18} />
-        </button>
+        {/* Big cover */}
+        <div style={{ position: 'relative', marginBottom: 28 }}>
+          <Cover track={currentTrack} size={230} />
+          <div style={{
+            position: 'absolute', inset: -50, zIndex: -1, pointerEvents: 'none',
+            background: `radial-gradient(ellipse at center, ${color}30 0%, transparent 70%)`,
+          }} />
+        </div>
 
-        <button onClick={prevTrack} style={ex.iconBtn}>
-          <SkipBack size={28} fill="currentColor" />
-        </button>
+        {/* Info */}
+        <div style={ex.info}>
+          <div style={ex.title}>{currentTrack?.title ?? 'Nothing playing'}</div>
+          <div style={ex.artist}>{currentTrack?.artist ?? 'Add files to start'}</div>
+        </div>
 
-        <button onClick={togglePlay} style={{ ...ex.playBtn, background: color }}>
-          {isPlaying
-            ? <Pause size={26} fill="currentColor" />
-            : <Play  size={26} fill="currentColor" style={{ marginLeft: 3 }} />}
-        </button>
+        {/* Seek */}
+        <div style={{ width: '100%', marginBottom: 24 }}>
+          <TouchSeekBar progress={progress} duration={duration} compact={false} />
+          <div style={ex.timeRow}>
+            <span className="mono" style={ex.time}>{formatTime(progress)}</span>
+            <span className="mono" style={ex.time}>{formatTime(duration)}</span>
+          </div>
+        </div>
 
-        <button onClick={nextTrack} style={ex.iconBtn}>
-          <SkipForward size={28} fill="currentColor" />
-        </button>
-
-        <button onClick={toggleRepeat}
-          style={{ ...ex.iconBtn, color: repeat !== 'none' ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
-          {repeat === 'one' ? <Repeat1 size={18} /> : <Repeat size={18} />}
-        </button>
+        {/* Controls */}
+        <div style={ex.controls}>
+          <button onClick={toggleShuffle}
+            style={{ ...ex.iconBtn, color: shuffle ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+            <Shuffle size={20} />
+          </button>
+          <button onClick={prevTrack} style={ex.iconBtn}>
+            <SkipBack size={30} fill="currentColor" />
+          </button>
+          <button onClick={togglePlay}
+            style={{ ...ex.playBtn, background: color, boxShadow: `0 6px 28px ${color}66` }}>
+            {isPlaying
+              ? <Pause size={28} fill="currentColor" />
+              : <Play  size={28} fill="currentColor" style={{ marginLeft: 3 }} />}
+          </button>
+          <button onClick={nextTrack} style={ex.iconBtn}>
+            <SkipForward size={30} fill="currentColor" />
+          </button>
+          <button onClick={toggleRepeat}
+            style={{ ...ex.iconBtn, color: repeat !== 'none' ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+            {repeat === 'one' ? <Repeat1 size={20} /> : <Repeat size={20} />}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── Compact bottom bar (always visible) ───────────────────────────────────
+// ── Compact bottom bar ─────────────────────────────────────────────────────
 export default function MobilePlayerBar({ analyserRef }) {
-  const {
-    currentTrack, isPlaying, progress, duration,
-    togglePlay, nextTrack,
-  } = useStore();
-
+  const { currentTrack, isPlaying, progress, duration, togglePlay, nextTrack, prevTrack } = useStore();
   const [expanded, setExpanded] = useState(false);
 
   // Swipe up to expand
   const touchStartY = useRef(null);
-  const onBarTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
-  const onBarTouchEnd = (e) => {
-    if (touchStartY.current === null) return;
-    const dy = touchStartY.current - e.changedTouches[0].clientY;
-    if (dy > 40) setExpanded(true);
-    touchStartY.current = null;
-  };
-
-  const color = currentTrack
-    ? COLORS[currentTrack.title.charCodeAt(0) % COLORS.length]
-    : '#6c63ff';
+  const color = getColor(currentTrack?.title);
 
   return (
     <>
-      {/* ── Expanded full-screen sheet ── */}
-      {expanded && (
-        <div style={bar.overlay}>
-          <ExpandedSheet analyserRef={analyserRef} onCollapse={() => setExpanded(false)} />
-        </div>
-      )}
+      {expanded && <ExpandedSheet onClose={() => setExpanded(false)} />}
 
-      {/* ── Compact bottom bar ── */}
       <div
         style={bar.wrap}
-        onTouchStart={onBarTouchStart}
-        onTouchEnd={onBarTouchEnd}
+        onTouchStart={e => { touchStartY.current = e.touches[0].clientY; }}
+        onTouchEnd={e => {
+          if (touchStartY.current === null) return;
+          const dy = touchStartY.current - e.changedTouches[0].clientY;
+          if (dy > 40) setExpanded(true);
+          touchStartY.current = null;
+        }}
       >
-        {/* Progress line at very top */}
-        <MobileSeekBar progress={progress} duration={duration} compact={true} />
+        {/* Thin progress line at top of bar */}
+        <TouchSeekBar progress={progress} duration={duration} compact={true} />
 
-        <div style={bar.inner} onClick={() => setExpanded(true)}>
-          {/* Cover */}
-          <MiniCover track={currentTrack} size={44} />
-
-          {/* Track info */}
-          <div style={bar.meta}>
-            <div style={bar.title}>
-              {currentTrack?.title ?? 'Nothing playing'}
-            </div>
-            <div style={bar.artist}>
-              {currentTrack?.artist ?? 'Add files to start'}
-            </div>
+        <div style={bar.inner}>
+          {/* Cover — tap opens sheet */}
+          <div onClick={() => setExpanded(true)} style={{ cursor: 'pointer', flexShrink: 0 }}>
+            <Cover track={currentTrack} size={44} />
           </div>
 
-          {/* Controls — stop propagation so taps don't expand sheet */}
-          <div style={bar.btns} onClick={e => e.stopPropagation()}>
-            <button
-              onClick={prevTrack}
-              style={bar.iconBtn}
-            >
+          {/* Track info — tap opens sheet */}
+          <div style={bar.meta} onClick={() => setExpanded(true)}>
+            <div style={bar.title}>{currentTrack?.title ?? 'Nothing playing'}</div>
+            <div style={bar.artist}>{currentTrack?.artist ?? 'Tap + to add music'}</div>
+          </div>
+
+          {/* Controls — stop propagation */}
+          <div style={bar.controls} onClick={e => e.stopPropagation()}>
+            <button onClick={prevTrack} style={bar.ctrlBtn}>
               <SkipBack size={20} fill="currentColor" />
             </button>
-            <button
-              onClick={togglePlay}
-              style={{ ...bar.playBtn, background: color }}
-            >
+            <button onClick={togglePlay}
+              style={{ ...bar.playBtn, background: currentTrack ? color : 'var(--bg-overlay)' }}>
               {isPlaying
                 ? <Pause size={18} fill="currentColor" />
                 : <Play  size={18} fill="currentColor" style={{ marginLeft: 2 }} />}
             </button>
-            <button
-              onClick={nextTrack}
-              style={bar.iconBtn}
-            >
+            <button onClick={nextTrack} style={bar.ctrlBtn}>
               <SkipForward size={20} fill="currentColor" />
             </button>
           </div>
@@ -284,24 +262,22 @@ export default function MobilePlayerBar({ analyserRef }) {
   );
 }
 
-// ── Compact bar styles ─────────────────────────────────────────────────────
+// ── Styles ─────────────────────────────────────────────────────────────────
 const bar = {
   wrap: {
-    position: 'fixed',
-    bottom: 0, left: 0, right: 0,
-    zIndex: 40,
-    background: 'rgba(17,17,24,0.97)',
+    background: 'rgba(13,12,24,0.97)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
     borderTop: '1px solid var(--border)',
-    paddingBottom: 'env(safe-area-inset-bottom)',
+    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
   },
   inner: {
     display: 'flex', alignItems: 'center', gap: 10,
     padding: '8px 12px 10px',
-    cursor: 'pointer',
   },
-  meta: { flex: 1, minWidth: 0 },
+  meta: {
+    flex: 1, minWidth: 0, cursor: 'pointer',
+  },
   title: {
     fontSize: 13, fontWeight: 600,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -311,8 +287,10 @@ const bar = {
     fontSize: 11, color: 'var(--text-muted)', marginTop: 1,
     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
   },
-  btns: { display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 },
-  iconBtn: {
+  controls: {
+    display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0,
+  },
+  ctrlBtn: {
     width: 36, height: 36, borderRadius: 8,
     background: 'none', border: 'none',
     color: 'var(--text-secondary)',
@@ -320,96 +298,74 @@ const bar = {
     cursor: 'pointer',
   },
   playBtn: {
-    width: 40, height: 40, borderRadius: '50%',
+    width: 42, height: 42, borderRadius: '50%',
     border: 'none', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer', flexShrink: 0,
-    boxShadow: '0 2px 12px rgba(108,99,255,0.4)',
-  },
-  overlay: {
-    position: 'fixed', inset: 0, zIndex: 60,
-    background: 'rgba(0,0,0,0.6)',
+    boxShadow: '0 2px 14px rgba(108,99,255,0.4)',
   },
 };
 
-// ── Expanded sheet styles ──────────────────────────────────────────────────
 const ex = {
+  backdrop: {
+    position: 'fixed', inset: 0, zIndex: 60,
+    background: 'rgba(0,0,0,0.7)',
+    display: 'flex', alignItems: 'flex-end',
+  },
   sheet: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    background: 'linear-gradient(180deg, #13121e 0%, #0a0a0f 100%)',
-    borderRadius: '20px 20px 0 0',
-    padding: '12px 24px 40px',
+    width: '100%',
+    background: 'linear-gradient(180deg, #16152a 0%, #0a0a0f 100%)',
+    borderRadius: '22px 22px 0 0',
+    padding: '14px 24px',
+    paddingBottom: 'calc(32px + env(safe-area-inset-bottom, 0px))',
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
-    animation: 'slideUp 0.3s cubic-bezier(0.32,0.72,0,1)',
-    maxHeight: '95dvh',
+    animation: 'slideUp 0.32s cubic-bezier(0.32,0.72,0,1)',
+    maxHeight: '96dvh',
     overflowY: 'auto',
   },
   pill: {
-    width: 36, height: 4, borderRadius: 2,
-    background: 'rgba(255,255,255,0.15)',
-    marginBottom: 16, flexShrink: 0,
+    width: 40, height: 4, borderRadius: 2,
+    background: 'rgba(255,255,255,0.18)',
+    marginBottom: 18, flexShrink: 0,
   },
   topRow: {
     width: '100%', display: 'flex', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 28,
+    justifyContent: 'space-between', marginBottom: 32,
   },
-  collapseBtn: {
-    width: 36, height: 36, borderRadius: 8,
-    background: 'var(--bg-elevated)', border: 'none',
-    color: 'var(--text-secondary)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    cursor: 'pointer',
-  },
-  nowPlaying: {
-    fontSize: 10, fontWeight: 700, letterSpacing: 2,
+  label: {
+    fontSize: 10, fontWeight: 700, letterSpacing: 2.5,
     color: 'var(--text-muted)',
   },
-  queueBtn: {
-    width: 36, height: 36, borderRadius: 8,
+  iconBtn: {
+    width: 38, height: 38, borderRadius: 10,
     background: 'var(--bg-elevated)', border: 'none',
     color: 'var(--text-secondary)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer',
-  },
-  coverWrap: {
-    position: 'relative', marginBottom: 32,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  glow: {
-    position: 'absolute', inset: -40,
-    pointerEvents: 'none', zIndex: -1,
   },
   info: {
     width: '100%', textAlign: 'center', marginBottom: 28,
   },
   title: {
     fontSize: 20, fontWeight: 700, letterSpacing: -0.3,
-    marginBottom: 6, color: 'var(--text-primary)',
+    color: 'var(--text-primary)', marginBottom: 6,
     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
   },
   artist: {
     fontSize: 14, color: 'var(--text-secondary)',
   },
-  seekWrap: { width: '100%', marginBottom: 28 },
   timeRow: {
-    display: 'flex', justifyContent: 'space-between', marginTop: 8,
+    display: 'flex', justifyContent: 'space-between', marginTop: 10,
   },
   time: { fontSize: 10, color: 'var(--text-muted)' },
   controls: {
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    gap: 8, width: '100%',
-  },
-  iconBtn: {
-    background: 'none', border: 'none',
-    color: 'var(--text-secondary)', cursor: 'pointer',
-    padding: 10, borderRadius: 10,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    gap: 10, width: '100%',
   },
   playBtn: {
-    width: 64, height: 64, borderRadius: '50%',
+    width: 68, height: 68, borderRadius: '50%',
     border: 'none', color: '#fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     cursor: 'pointer',
-    boxShadow: '0 6px 28px rgba(108,99,255,0.5)',
   },
 };
