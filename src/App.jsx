@@ -12,6 +12,7 @@ import EqualizerView from './components/EqualizerView';
 import PlaylistView from './components/PlaylistView';
 import SettingsView from './components/SettingsView';
 import { Menu } from 'lucide-react';
+import { Analytics } from "@vercel/analytics/next"
 
 const MIN_PLAYER_W = 280;
 const MAX_PLAYER_W = 520;
