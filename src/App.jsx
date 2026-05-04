@@ -4,6 +4,7 @@ import { useStore } from './store/useStore';
 import * as GDrive from './utils/googleDrive';
 import Sidebar from './components/Sidebar';
 import PlayerBar from './components/PlayerBar';
+import MobilePlayerBar from './components/MobilePlayerBar';
 import HomeView from './components/HomeView';
 import LibraryView from './components/LibraryView';
 import SearchView from './components/SearchView';
@@ -12,7 +13,6 @@ import EqualizerView from './components/EqualizerView';
 import PlaylistView from './components/PlaylistView';
 import SettingsView from './components/SettingsView';
 import { Menu } from 'lucide-react';
-
 
 const MIN_PLAYER_W = 280;
 const MAX_PLAYER_W = 520;
@@ -63,23 +63,21 @@ export default function App() {
   }, [playerWidth]);
 
   if (!dbReady) {
-  return (
-    <div style={s.loading}>
-      <img 
-        src="/kryptunes.PNG" 
-        alt="KRYPTUNES"
-        style={{ 
-          width: 120,        // ← bigger
-          height: 120,       // ← bigger
-          borderRadius: 24, 
-          animation: 'pulse-glow 5s ease-in-out infinite',
-          objectFit: 'cover',
-        }} 
-      />
-      <div style={s.loadingText}>KRYPTUNES</div>
-    </div>
-  );
-}
+    return (
+      <div style={s.loading}>
+        <img
+          src="/kryptunes.PNG"
+          alt="KRYPTUNES"
+          style={{
+            width: 120, height: 120, borderRadius: 24,
+            animation: 'pulse-glow 5s ease-in-out infinite',
+            objectFit: 'cover',
+          }}
+        />
+        <div style={s.loadingText}>KRYPTUNES</div>
+      </div>
+    );
+  }
 
   const renderView = () => {
     switch (activeView) {
@@ -97,7 +95,7 @@ export default function App() {
   return (
     <div style={s.root}>
 
-      {/* Mobile dim overlay */}
+      {/* Mobile dim overlay — sidebar */}
       {sidebarOpen && (
         <div className="mobile-overlay" onClick={toggleSidebar} style={s.overlay} />
       )}
@@ -130,7 +128,6 @@ export default function App() {
 
         {/* Right player panel — desktop only */}
         <div className="right-player-panel" style={{ ...s.rightPanel, width: playerWidth }}>
-          {/* Drag handle */}
           <div
             style={s.dragHandle}
             onMouseDown={onDragStart}
@@ -139,6 +136,12 @@ export default function App() {
           <PlayerBar analyserRef={analyserRef} vertical />
         </div>
       </div>
+
+      {/* ── Mobile bottom player bar — only on mobile ── */}
+      <div className="mobile-player-bar">
+        <MobilePlayerBar analyserRef={analyserRef} />
+      </div>
+
     </div>
   );
 }
@@ -149,13 +152,6 @@ const s = {
     height: '100dvh', display: 'flex', flexDirection: 'column',
     alignItems: 'center', justifyContent: 'center', gap: 10,
     background: 'var(--bg-base)',
-  },
-  loadingIcon: {
-    width: 52, height: 52, borderRadius: 14,
-    background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontWeight: 900, fontSize: 26, color: '#fff',
-    animation: 'pulse-glow 2s ease-in-out infinite',
   },
   loadingText: {
     fontWeight: 800, fontSize: 24, letterSpacing: 6,
@@ -176,7 +172,6 @@ const s = {
   main: {
     flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
     minWidth: 0,
-    // On desktop, offset for sidebar (sidebar is fixed)
     marginLeft: 'var(--sidebar-w)',
   },
   mobileBar: {
@@ -215,6 +210,5 @@ const s = {
     zIndex: 10,
     background: 'transparent',
     transition: 'background 0.15s',
-    '&:hover': { background: 'var(--accent-primary)' },
   },
 };

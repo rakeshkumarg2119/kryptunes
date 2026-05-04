@@ -15,6 +15,7 @@
   --border: rgba(255,255,255,0.06);
   --border-active: rgba(108,99,255,0.4);
   --player-h: 82px;
+  --mobile-player-h: 70px;
   --sidebar-w: 240px;
   --radius-sm: 6px;
   --radius-md: 12px;
@@ -53,11 +54,14 @@ input { font-family: inherit; }
   0%,100% { transform: scaleY(0.3); }
   50%     { transform: scaleY(1);   }
 }
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
 
 /* ══════════════════════════════════════════════════════
    DESKTOP (≥768px)
    Layout: [Sidebar | Main content | Right player panel]
-   All three are in a flex row — sidebar is NOT fixed.
    ══════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
 
@@ -78,12 +82,13 @@ input { font-family: inherit; }
   }
 
   /* Hide mobile-only elements */
-  .mobile-overlay { display: none !important; }
-  .mobile-bar     { display: none !important; }
-  .mobile-add-bar { display: none !important; }
+  .mobile-overlay    { display: none !important; }
+  .mobile-bar        { display: none !important; }
+  .mobile-add-bar    { display: none !important; }
+  .mobile-player-bar { display: none !important; }
 
   /* Hide X close button on desktop — sidebar is always visible */
-  .sidebar-close  { display: none !important; }
+  .sidebar-close { display: none !important; }
 
   /* Show right player panel */
   .right-player-panel { display: flex !important; }
@@ -91,7 +96,7 @@ input { font-family: inherit; }
 
 /* ══════════════════════════════════════════════════════
    MOBILE (<768px)
-   Layout: sidebar overlays from left, bottom player bar
+   Layout: sidebar overlays, bottom player bar fixed
    ══════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
   :root {
@@ -102,27 +107,33 @@ input { font-family: inherit; }
   /* Show mobile top bar */
   .mobile-bar { display: flex !important; }
 
-  /* Sidebar: overlays from the left */
+  /* Sidebar: overlays from the left, prevent scroll bleed */
   .sidebar-wrap {
     position: fixed !important;
     top: 0; left: 0; bottom: 0;
     z-index: 50;
     height: auto !important;
+    overscroll-behavior: contain;
   }
 
-  /* Main: leave room for bottom player bar */
-  main { padding-bottom: var(--player-h) !important; }
+  /* Main: leave room for bottom player bar + safe area */
+  main {
+    margin-left: 0 !important;
+    padding-bottom: calc(var(--mobile-player-h) + env(safe-area-inset-bottom)) !important;
+  }
 
   /* Show X close on mobile */
   .sidebar-close { display: flex !important; }
 
-  /* Hide right player panel — use bottom bar on mobile */
+  /* Hide right player panel — replaced by bottom bar on mobile */
   .right-player-panel { display: none !important; }
 
   /* Show mobile add-files bar */
   .mobile-add-bar { display: flex !important; }
-}
 
+  /* Show mobile player bar */
+  .mobile-player-bar { display: block !important; }
+}
 
 /* ── Hover states (non-touch) ── */
 @media (hover: hover) {
