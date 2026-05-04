@@ -20,7 +20,7 @@ const DEFAULT_PLAYER_W = 340;
 
 export default function App() {
   const { audioRef, analyserRef } = useAudioEngine();
-  const { activeView, initDB, dbReady, sidebarOpen, toggleSidebar, setActiveView } = useStore();
+  const { activeView, initDB, dbReady, sidebarOpen, toggleSidebar } = useStore();
   const [playerWidth, setPlayerWidth] = useState(() => {
     const saved = localStorage.getItem('KRYPTUNES-player-width');
     return saved ? parseInt(saved) : DEFAULT_PLAYER_W;
@@ -43,7 +43,6 @@ export default function App() {
     startW.current = playerWidth;
     document.body.style.cursor = 'col-resize';
     document.body.style.userSelect = 'none';
-
     const onMove = (ev) => {
       if (!dragging.current) return;
       const delta = startX.current - ev.clientX;
@@ -65,15 +64,9 @@ export default function App() {
   if (!dbReady) {
     return (
       <div style={s.loading}>
-        <img
-          src="/kryptunes.PNG"
-          alt="KRYPTUNES"
-          style={{
-            width: 120, height: 120, borderRadius: 24,
-            animation: 'pulse-glow 5s ease-in-out infinite',
-            objectFit: 'cover',
-          }}
-        />
+        <img src="/kryptunes.PNG" alt="KRYPTUNES"
+          style={{ width: 120, height: 120, borderRadius: 24, objectFit: 'cover',
+            animation: 'pulse-glow 5s ease-in-out infinite' }} />
         <div style={s.loadingText}>KRYPTUNES</div>
       </div>
     );
@@ -95,26 +88,22 @@ export default function App() {
   return (
     <div style={s.root}>
 
-      {/* Mobile dim overlay — sidebar */}
+      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div className="mobile-overlay" onClick={toggleSidebar} style={s.overlay} />
       )}
 
-      <div style={s.layout}>
-        {/* Left Sidebar */}
-        <div
-          className="sidebar-wrap"
-          style={{
-            ...s.sidebarWrap,
-            transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
-          }}
-        >
+      <div className="app-layout">
+
+        {/* Sidebar */}
+        <div className={`sidebar-wrap${sidebarOpen ? ' sidebar-open' : ''}`}>
           <Sidebar />
         </div>
 
-        {/* Main content */}
-        <main style={s.main}>
-          {/* Mobile topbar */}
+        {/* Main */}
+        <main className="app-main">
+
+          {/* Mobile top bar */}
           <div className="mobile-bar" style={s.mobileBar}>
             <button onClick={toggleSidebar} style={s.menuBtn}><Menu size={19} /></button>
             <span style={s.mobileTitle}>KRYPTUNES</span>
@@ -126,18 +115,15 @@ export default function App() {
           </div>
         </main>
 
-        {/* Right player panel — desktop only */}
-        <div className="right-player-panel" style={{ ...s.rightPanel, width: playerWidth }}>
-          <div
-            style={s.dragHandle}
-            onMouseDown={onDragStart}
-            title="Drag to resize"
-          />
-          <PlayerBar analyserRef={analyserRef} vertical />
+        {/* Right player — desktop only */}
+        <div className="right-player-panel" style={{ width: playerWidth }}>
+          <div style={s.dragHandle} onMouseDown={onDragStart} title="Drag to resize" />
+          <PlayerBar analyserRef={analyserRef} />
         </div>
+
       </div>
 
-      {/* ── Mobile bottom player bar — only on mobile ── */}
+      {/* Mobile bottom player */}
       <div className="mobile-player-bar">
         <MobilePlayerBar analyserRef={analyserRef} />
       </div>
@@ -159,32 +145,17 @@ const s = {
     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
   },
   overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
-    zIndex: 49,
-  },
-  layout: {
-    display: 'flex', flex: 1, overflow: 'hidden',
-  },
-  sidebarWrap: {
-    position: 'fixed', top: 0, left: 0, bottom: 0,
-    zIndex: 50, transition: 'transform 0.25s ease',
-  },
-  main: {
-    flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column',
-    minWidth: 0,
-    marginLeft: 'var(--sidebar-w)',
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 49,
   },
   mobileBar: {
-    display: 'none',
     alignItems: 'center', justifyContent: 'space-between',
     padding: '10px 14px', borderBottom: '1px solid var(--border)',
     background: 'var(--bg-surface)', flexShrink: 0,
   },
   menuBtn: {
     width: 36, height: 36, borderRadius: 8,
-    background: 'var(--bg-elevated)', border: 'none',
-    color: 'var(--text-primary)', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    background: 'var(--bg-elevated)', border: 'none', color: 'var(--text-primary)',
+    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   mobileTitle: {
     fontWeight: 800, fontSize: 15, letterSpacing: 3,
@@ -192,23 +163,8 @@ const s = {
     WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
   },
   viewWrap: { flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' },
-  rightPanel: {
-    flexShrink: 0,
-    height: '100%',
-    background: 'var(--bg-surface)',
-    borderLeft: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    overflow: 'hidden',
-  },
   dragHandle: {
-    position: 'absolute',
-    left: 0, top: 0, bottom: 0,
-    width: 4,
-    cursor: 'col-resize',
-    zIndex: 10,
-    background: 'transparent',
-    transition: 'background 0.15s',
+    position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+    cursor: 'col-resize', zIndex: 10, background: 'transparent', transition: 'background 0.15s',
   },
 };

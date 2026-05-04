@@ -1,15 +1,16 @@
 // IndexedDB persistence
-// FileSystemFileHandle objects CAN be stored in IndexedDB and survive refresh.
-// On restore we call queryPermission/requestPermission — no full picker re-open needed.
+// FileSystemFileHandle stored for Chrome/Edge (desktop).
+// Audio blob cache stored for Android/Firefox (no File System Access API).
 
 const DB_NAME = 'KRYPTUNES-db';
-const DB_VERSION = 2; // bumped to add fileHandles store
+const DB_VERSION = 3; // bumped: add audioCache store
 const STORES = {
   tracks: 'tracks',
   playlists: 'playlists',
   settings: 'settings',
   driveAccounts: 'driveAccounts',
   fileHandles: 'fileHandles',
+  audioCache: 'audioCache',   // NEW: stores raw audio ArrayBuffers
 };
 
 let db = null;
@@ -30,6 +31,8 @@ export async function openDB() {
         d.createObjectStore(STORES.driveAccounts, { keyPath: 'email' });
       if (!d.objectStoreNames.contains(STORES.fileHandles))
         d.createObjectStore(STORES.fileHandles, { keyPath: 'id' });
+      if (!d.objectStoreNames.contains(STORES.audioCache))
+        d.createObjectStore(STORES.audioCache, { keyPath: 'id' });
     };
     req.onsuccess = (e) => { db = e.target.result; resolve(db); };
     req.onerror = () => reject(req.error);
@@ -46,7 +49,7 @@ async function getAll(storeName) {
   });
 }
 
-// ── Tracks ───────────────────────────────────────────────────────────────────
+// ── Tracks ────────────────────────────────────────────────────────────────
 export async function saveTracks(tracks) {
   const d = await openDB();
   return new Promise((resolve, reject) => {
@@ -61,7 +64,73 @@ export async function saveTracks(tracks) {
 
 export async function loadTracks() { return getAll(STORES.tracks); }
 
-// ── FileSystemFileHandle store ────────────────────────────────────────────────
+// ── Audio blob cache (Android / no File System Access API) ────────────────
+// Stores the raw ArrayBuffer of the audio file so it survives page refresh.
+// Max ~50MB per entry — browser will evict under storage pressure (fine).
+
+export async function saveAudioCache(trackId, file) {
+  if (!file) return;
+  try {
+    const buffer = await file.arrayBuffer();
+    const d = await openDB();
+    return new Promise((resolve, reject) => {
+      const t = d.transaction(STORES.audioCache, 'readwrite');
+      const req = t.objectStore(STORES.audioCache).put({
+        id: trackId,
+        buffer,
+        type: file.type || 'audio/mpeg',
+        name: file.name,
+      });
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    // Storage quota exceeded or other error — fail silently
+    console.warn('saveAudioCache failed:', e);
+  }
+}
+
+export async function loadAudioCache(trackId) {
+  try {
+    const d = await openDB();
+    return new Promise((resolve, reject) => {
+      const t = d.transaction(STORES.audioCache, 'readonly');
+      const req = t.objectStore(STORES.audioCache).get(trackId);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function loadAllAudioCacheIds() {
+  try {
+    const d = await openDB();
+    return new Promise((resolve, reject) => {
+      const t = d.transaction(STORES.audioCache, 'readonly');
+      const req = t.objectStore(STORES.audioCache).getAllKeys();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteAudioCache(trackId) {
+  try {
+    const d = await openDB();
+    return new Promise((resolve, reject) => {
+      const t = d.transaction(STORES.audioCache, 'readwrite');
+      t.objectStore(STORES.audioCache).delete(trackId);
+      t.oncomplete = () => resolve();
+      t.onerror = () => reject(t.error);
+    });
+  } catch { /* ignore */ }
+}
+
+// ── FileSystemFileHandle store (Chrome/Edge desktop) ─────────────────────
 export async function saveFileHandle(trackId, handle) {
   if (!handle) return;
   const d = await openDB();
@@ -90,7 +159,7 @@ export async function deleteFileHandle(trackId) {
   });
 }
 
-// ── Playlists ─────────────────────────────────────────────────────────────────
+// ── Playlists ─────────────────────────────────────────────────────────────
 export async function savePlaylists(playlists) {
   const d = await openDB();
   return new Promise((resolve, reject) => {
@@ -107,7 +176,7 @@ export async function savePlaylists(playlists) {
 
 export async function loadPlaylists() { return getAll(STORES.playlists); }
 
-// ── Settings ──────────────────────────────────────────────────────────────────
+// ── Settings ──────────────────────────────────────────────────────────────
 export async function saveSetting(key, value) {
   const d = await openDB();
   return new Promise((resolve, reject) => {
@@ -128,18 +197,11 @@ export async function loadSetting(key) {
   });
 }
 
-// ── Session (last played track + progress) ────────────────────────────────────
-// Saves { track, progress, queue, queueIndex, savedAt } so app can restore
-// exactly where user left off — like Spotify. Expires after 7 days.
-export async function saveSession(data) {
-  return saveSetting('session', data);
-}
+// ── Session ───────────────────────────────────────────────────────────────
+export async function saveSession(data) { return saveSetting('session', data); }
+export async function loadSession()     { return loadSetting('session'); }
 
-export async function loadSession() {
-  return loadSetting('session');
-}
-
-// ── Drive accounts ────────────────────────────────────────────────────────────
+// ── Drive accounts ────────────────────────────────────────────────────────
 export async function saveDriveAccount(account) {
   const d = await openDB();
   return new Promise((resolve, reject) => {

@@ -1,10 +1,13 @@
-import { saveFileHandle } from './db';
+import { saveFileHandle, saveAudioCache } from './db';
 
 // ── Feature detection ────────────────────────────────────────────────────────
 export const supportsFileSystemAccess = typeof window !== 'undefined' &&
   'showOpenFilePicker' in window;
 
-// ── Open files via File System Access API (persists handles) ─────────────────
+// Max file size to cache in IndexedDB (50MB). Skip larger files.
+const MAX_CACHE_BYTES = 50 * 1024 * 1024;
+
+// ── Open files via File System Access API (Chrome/Edge desktop) ──────────────
 export async function openFilesWithPicker() {
   const handles = await window.showOpenFilePicker({
     multiple: true,
@@ -29,7 +32,6 @@ async function collectAudioHandles(dirHandle, out, rootName) {
   for await (const [, entry] of dirHandle.entries()) {
     if (entry.kind === 'file') {
       if (/\.(mp3|wav|ogg|flac|aac|m4a|opus|mp4)$/i.test(entry.name)) {
-        // Attach folder name so we can use it as album
         entry._folderName = rootName || dirHandle.name;
         out.push(entry);
       }
@@ -45,8 +47,11 @@ async function processHandles(handles, folderName) {
     try {
       const file = await handle.getFile();
       const track = await parseFileMetadata(file, handle._folderName || folderName);
-      // Save handle to IndexedDB so we can restore it on refresh
       await saveFileHandle(track.id, handle);
+      // Also cache the audio blob so Android/Firefox fallback works if user opens on mobile
+      if (file.size <= MAX_CACHE_BYTES) {
+        saveAudioCache(track.id, file); // fire-and-forget, non-blocking
+      }
       tracks.push(track);
     } catch (e) {
       console.warn('Could not read file handle:', e);
@@ -56,34 +61,25 @@ async function processHandles(handles, folderName) {
 }
 
 // ── Restore file handles from IndexedDB after refresh ────────────────────────
-// Returns a map of { trackId -> File } for tracks whose handles are still valid.
-// Silently skips handles that can no longer be read.
 export async function restoreHandles(handleMap) {
   const fileMap = {};
   const promises = Object.entries(handleMap).map(async ([trackId, handle]) => {
     try {
-      // queryPermission returns 'granted' | 'prompt' | 'denied'
       let perm = await handle.queryPermission({ mode: 'read' });
       if (perm === 'prompt') {
-        // requestPermission must be called from a user-gesture context.
-        // We attempt it here (called during initDB flow triggered by app load).
-        // In most browsers this is fine; worst case it throws and we skip.
         perm = await handle.requestPermission({ mode: 'read' });
       }
       if (perm !== 'granted') return;
       const file = await handle.getFile();
       fileMap[trackId] = file;
-    } catch (_) {
-      // Handle stale or permission denied — just skip
-    }
+    } catch (_) {}
   });
   await Promise.allSettled(promises);
   return fileMap;
 }
 
-// ── Fallback: plain <input type="file"> ──────────────────────────────────────
-// Used in browsers without File System Access API (Firefox, Safari < 16).
-// No handle persistence — user must re-pick on refresh.
+// ── Fallback: plain <input type="file"> (Android / Firefox / Safari) ─────────
+// NOW saves audio blob to IndexedDB so tracks persist across refresh.
 export async function loadLocalFiles(fileList) {
   const tracks = [];
   for (const file of Array.from(fileList)) {
@@ -92,6 +88,12 @@ export async function loadLocalFiles(fileList) {
       ? file.webkitRelativePath.split('/')[0]
       : null;
     const track = await parseFileMetadata(file, folderName);
+
+    // Cache audio in IndexedDB — this is what makes Android persist across refresh
+    if (file.size <= MAX_CACHE_BYTES) {
+      saveAudioCache(track.id, file); // fire-and-forget
+    }
+
     tracks.push(track);
   }
   return tracks;
@@ -212,7 +214,6 @@ async function parseFileMetadata(file, folderAlbum) {
   const id = `local-${file.name}-${file.size}`;
   const name = file.name.replace(/\.[^/.]+$/, '');
 
-  // Filename-based fallback: strip leading track numbers
   const stripped = name.replace(/^\d+[\s.\-]+/, '').trim();
   const parts = stripped.split(' - ');
   const fileTitle  = parts.length > 1 ? parts.slice(1).join(' - ').trim() : stripped;

@@ -15,7 +15,7 @@
   --border: rgba(255,255,255,0.06);
   --border-active: rgba(108,99,255,0.4);
   --player-h: 82px;
-  --mobile-player-h: 70px;
+  --mobile-player-h: 68px;
   --sidebar-w: 240px;
   --radius-sm: 6px;
   --radius-md: 12px;
@@ -48,94 +48,153 @@ input { font-family: inherit; }
   0%,100% { box-shadow: 0 0 12px var(--accent-glow); }
   50%      { box-shadow: 0 0 30px var(--accent-glow), 0 0 60px rgba(108,99,255,0.15); }
 }
-@keyframes spin    { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-@keyframes fadeIn  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes spin     { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes fadeIn   { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 @keyframes barBounce {
   0%,100% { transform: scaleY(0.3); }
-  50%     { transform: scaleY(1);   }
+  50%      { transform: scaleY(1); }
 }
 @keyframes slideUp {
   from { transform: translateY(100%); opacity: 0; }
   to   { transform: translateY(0);    opacity: 1; }
 }
 
-/* ══════════════════════════════════════════════════════
-   DESKTOP (≥768px)
-   Layout: [Sidebar | Main content | Right player panel]
-   ══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   APP LAYOUT — shared base
+   .app-layout  = flex row container (fills root column flex)
+   .app-main    = flex: 1 content column
+   ══════════════════════════════════════════════════════════ */
+
+.app-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+}
+
+.app-main {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
+   DESKTOP  ≥ 768px
+   [Sidebar fixed-width | Main flex-1 | Right player fixed-width]
+   All in a flex row — nothing is position:fixed
+   ══════════════════════════════════════════════════════════ */
 @media (min-width: 768px) {
 
-  /* Sidebar: in normal flex flow, always visible */
+  /* Sidebar: participates in flex flow, always visible */
   .sidebar-wrap {
     position: relative !important;
     transform: none !important;
-    top: auto !important; left: auto !important; bottom: auto !important;
-    z-index: auto !important;
+    width: var(--sidebar-w) !important;
     height: 100% !important;
     flex-shrink: 0 !important;
+    z-index: auto !important;
   }
 
-  /* Main: no margin/padding needed since layout is flex row */
-  main {
+  /* Main: no offset needed — sidebar is inline */
+  .app-main {
     margin-left: 0 !important;
     padding-bottom: 0 !important;
   }
 
-  /* Hide mobile-only elements */
+  /* Right player panel: visible, flex column */
+  .right-player-panel {
+    display: flex !important;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100%;
+    background: var(--bg-surface);
+    border-left: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Hide all mobile-only elements */
   .mobile-overlay    { display: none !important; }
   .mobile-bar        { display: none !important; }
   .mobile-add-bar    { display: none !important; }
   .mobile-player-bar { display: none !important; }
-
-  /* Hide X close button on desktop — sidebar is always visible */
-  .sidebar-close { display: none !important; }
-
-  /* Show right player panel */
-  .right-player-panel { display: flex !important; }
+  .sidebar-close     { display: none !important; }
 }
 
-/* ══════════════════════════════════════════════════════
-   MOBILE (<768px)
-   Layout: sidebar overlays, bottom player bar fixed
-   ══════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   MOBILE  < 768px
+   Sidebar: position:fixed, slides in from left over content
+   Main: full width, no margin, padding-bottom for player bar
+   Right player panel: hidden
+   Mobile bottom player: fixed at bottom
+   ══════════════════════════════════════════════════════════ */
 @media (max-width: 767px) {
   :root {
-    --player-h: 72px;
     --sidebar-w: 260px;
   }
 
-  /* Show mobile top bar */
-  .mobile-bar { display: flex !important; }
-
-  /* Sidebar: overlays from the left, prevent scroll bleed */
+  /* Sidebar: overlays from left, hidden by default */
   .sidebar-wrap {
     position: fixed !important;
-    top: 0; left: 0; bottom: 0;
-    z-index: 50;
-    height: auto !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: var(--sidebar-w) !important;
+    height: 100dvh !important;
+    z-index: 50 !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s ease !important;
     overscroll-behavior: contain;
   }
 
-  /* Main: leave room for bottom player bar + safe area */
-  main {
-    margin-left: 0 !important;
-    padding-bottom: calc(var(--mobile-player-h) + env(safe-area-inset-bottom)) !important;
+  /* When sidebar is open (class toggled by React) */
+  .sidebar-wrap.sidebar-open {
+    transform: translateX(0) !important;
   }
 
-  /* Show X close on mobile */
-  .sidebar-close { display: flex !important; }
+  /* Main: full width — NO margin-left */
+  .app-main {
+    margin-left: 0 !important;
+    /* Room for mobile bottom player + iPhone safe area */
+    padding-bottom: calc(var(--mobile-player-h) + env(safe-area-inset-bottom, 0px)) !important;
+    width: 100% !important;
+  }
 
-  /* Hide right player panel — replaced by bottom bar on mobile */
-  .right-player-panel { display: none !important; }
+  /* Right player panel: hidden on mobile */
+  .right-player-panel {
+    display: none !important;
+  }
 
-  /* Show mobile add-files bar */
-  .mobile-add-bar { display: flex !important; }
+  /* Mobile top bar */
+  .mobile-bar {
+    display: flex !important;
+  }
 
-  /* Show mobile player bar */
-  .mobile-player-bar { display: block !important; }
+  /* Mobile add-files bar */
+  .mobile-add-bar {
+    display: flex !important;
+  }
+
+  /* Mobile bottom player bar wrapper */
+  .mobile-player-bar {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+  }
+
+  /* Show X close button in sidebar */
+  .sidebar-close {
+    display: flex !important;
+  }
 }
 
-/* ── Hover states (non-touch) ── */
+/* ── Hover states (non-touch only) ── */
 @media (hover: hover) {
   button:hover { opacity: 0.82; }
 }
