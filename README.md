@@ -1,193 +1,138 @@
-# KRYPTUNES 🎵
+🎧 KRYPTUNES
+Privacy-first Music Player
 
-A privacy-first music player. Local files + Google Drive streaming. No server. No accounts. Pure browser.
+🎵 Local files + Google Drive streaming
+🔐 No server. No accounts. Pure browser.
 
-**Live:** https://kryptunes.vercel.app/
+🌐 Live Demo
 
----
+👉 https://kryptunes.vercel.app/
 
-## Stack
-
-- React + Vite
-- Zustand (state)
-- Web Audio API (EQ, visualizer)
-- IndexedDB (persistence)
-- File System Access API (local file handles)
-- Google Drive API v3 + Picker
-
----
-
-## Features
-
-- Play local MP3/WAV/FLAC/OGG/AAC/M4A
-- Stream from Google Drive (multi-account)
-- 10-band parametric EQ with presets
-- Session restore (picks up where you left off, 7-day window)
-- Playlist management
-- Queue management
-- Ring visualizer + frequency bar visualizer
-- Drag-to-resize player panel
-- IndexedDB persistence (tracks, playlists, EQ, volume, session)
-- File handle persistence (no re-picking folder after refresh on Chrome/Edge)
-
----
-
-## Setup
-
-```bash
+✨ Highlights
+⚡ Blazing fast (Vite + React)
+🔒 Privacy-first (no backend, no tracking)
+☁️ Google Drive streaming
+🎚️ 10-band EQ + presets
+💾 Session restore (7 days)
+🎶 Advanced queue & playlist system
+🌈 Beautiful visualizers
+📱 Responsive (desktop + mobile)
+🧠 Tech Stack
++ React + Vite
++ Zustand (state management)
++ Web Audio API (EQ + visualizer)
++ IndexedDB (offline persistence)
++ File System Access API
++ Google Drive API v3 + Picker
+🚀 Features
+🎵 Playback
+Supports: MP3, WAV, FLAC, OGG, AAC, M4A
+Local file playback (no upload)
+Google Drive streaming (multi-account)
+🎛️ Audio Control
+10-band parametric EQ
+Built-in presets
+Volume + seek control
+📚 Library
+Playlist management
+Queue system
+Search + sorting
+💡 Smart Persistence
+IndexedDB storage (tracks, playlists, EQ, session)
+File handles saved (Chrome/Edge)
+No re-import after refresh
+🎨 UI/UX
+Ring visualizer + frequency bars
+Drag-to-resize player
+Smooth animations
+⚙️ Setup
 git clone <repo>
 cd kryptunes
 npm install
-cp .env.example .env   # fill in Google credentials
+cp .env.example .env
 npm run dev
-```
+🔑 Google Drive Setup
+🧩 Step 1 — Google Cloud
+Enable:
+Google Drive API
+Google Picker API
+Create:
+OAuth Client ID (Web)
+API Key
+Add origins:
+http://localhost:5173
+https://kryptunes.vercel.app
+🔐 Step 2 — OAuth Consent
 
----
+Scopes:
+https://www.googleapis.com/auth/drive.readonly
+https://www.googleapis.com/auth/userinfo.email
+https://www.googleapis.com/auth/userinfo.profile
 
-## Google Drive Setup
+👉 Add your Gmail as test user
 
-### Step 1 — Google Cloud Console
+🔧 Step 3 — .env
+VITE_GOOGLE_CLIENT_ID=your_client_id
+VITE_GOOGLE_API_KEY=your_api_key
+☁️ Step 4 — Vercel Env
 
-1. Go to https://console.cloud.google.com/
-2. Create new project (or use existing)
-3. **APIs & Services → Enable APIs**
-   - Enable **Google Drive API**
-   - Enable **Google Picker API**
-4. **APIs & Services → Credentials → Create Credentials → OAuth 2.0 Client ID**
-   - Application type: **Web application**
-   - Authorized JavaScript origins:
-     ```
-     http://localhost:5173
-     https://kryptunes.vercel.app
-     ```
-   - Authorized redirect URIs: (leave empty — not needed for implicit flow)
-   - Save → copy **Client ID**
-5. **Credentials → Create Credentials → API Key**
-   - Copy **API Key**
-   - Restrict key: APIs → Google Drive API + Google Picker API
-   - HTTP referrer restrictions: `https://kryptunes.vercel.app/*` and `http://localhost:5173/*`
+Add in dashboard:
 
-### Step 2 — OAuth Consent Screen
+Key	Value
+VITE_GOOGLE_CLIENT_ID	your_client_id
+VITE_GOOGLE_API_KEY	your_api_key
 
-1. **APIs & Services → OAuth consent screen**
-2. User type: **External**
-3. Fill app name, support email, developer email
-4. Scopes → Add:
-   - `https://www.googleapis.com/auth/drive.readonly`
-   - `https://www.googleapis.com/auth/userinfo.email`
-   - `https://www.googleapis.com/auth/userinfo.profile`
-5. Test users → Add your Gmail(s) (required while app in **Testing** mode)
-6. Save
+👉 Redeploy after adding
 
-> App stays in Testing mode forever for personal use. No Google verification needed.
-
-### Step 3 — Local .env
-
-```env
-VITE_GOOGLE_CLIENT_ID=your_client_id_here.apps.googleusercontent.com
-VITE_GOOGLE_API_KEY=your_api_key_here
-```
-
-### Step 4 — Vercel Environment Variables
-
-1. Vercel dashboard → your project → **Settings → Environment Variables**
-2. Add:
-   | Name | Value |
-   |------|-------|
-   | `VITE_GOOGLE_CLIENT_ID` | `your_client_id.apps.googleusercontent.com` |
-   | `VITE_GOOGLE_API_KEY` | `your_api_key` |
-3. **Redeploy** (environment vars only take effect on new deploy)
-
-### Step 5 — Use in App
-
-1. Open app → **Settings**
-2. Click **Connect Google Account**
-3. Sign in → grant permissions
-4. Click **+ Pick Files** → select audio files or a folder
-5. Tracks stream directly from Drive
-
----
-
-## Mobile Fixes (Known Issues → Solutions)
-
-### Problem 1: Sidebar doesn't close after nav tap
-`Sidebar.jsx` `closeMobile()` fires correctly but only if `window.innerWidth < 768`. Verify CSS breakpoint matches.
-
-### Problem 2: Player controls not visible on mobile
-Right player panel is `display: none` on mobile (correct). Bottom player bar must render. Check `.mobile-bar` display rules in `globals.css`.
-
-### Problem 3: File picker broken on iOS Safari
-iOS Safari doesn't support `showOpenFilePicker`. Falls back to `<input type="file">`. The `handleMobileFiles` button in `HomeView.jsx` triggers `mobileFilesRef.current.click()` — this must be called directly from a user tap (no async before click or iOS blocks it).
-
-### Problem 4: Audio not playing on iOS
-iOS requires user gesture before `AudioContext` can start. `buildGraph()` in `useAudioEngine.js` creates context — call `_ctx.resume()` inside a tap handler if audio silently fails.
-
-### Problem 5: Vertical EQ sliders broken on mobile
-`input[type=range]` with `writingMode: vertical-lr` + `WebkitAppearance: slider-vertical` doesn't work on iOS. Replace with touch-handled custom sliders or use `orient="vertical"` (Firefox only). Real fix: build custom range with `touchmove` handler.
-
-### Problem 6: Cover art / ring canvas too large on small screens
-`CoverArt` uses fixed `size=180` in `PlayerBar`. Mobile bottom bar needs smaller size. Pass dynamic size based on viewport.
-
----
-
-## Project Structure
-
-```
+📱 Mobile Fixes (Important)
+❗ iOS Safari Limitations
+❌ showOpenFilePicker not supported
+❌ AudioContext requires user gesture
+❌ Vertical sliders break
+✅ Fixes
+Use <input type="file"> fallback
+Resume audio context on tap
+Build custom touch sliders
+📁 Project Structure
 src/
-  components/
-    App.jsx            — root layout, resize handle
-    Sidebar.jsx        — nav + playlists
-    PlayerBar.jsx      — cover, controls, seek, volume
-    Visualizer.jsx     — frequency bar canvas
-    HomeView.jsx       — file picker, album groups
-    LibraryView.jsx    — sorted track list
-    SearchView.jsx     — debounced search
-    QueueView.jsx      — play queue
-    EqualizerView.jsx  — 10-band EQ
-    PlaylistView.jsx   — playlist detail
-    SettingsView.jsx   — Drive accounts, library stats
-    TrackRow.jsx       — memoized track row
-  hooks/
-    useAudioEngine.js  — Web Audio graph, play/pause/seek
-  store/
-    useStore.js        — Zustand store, all state + actions
-  utils/
-    db.js              — IndexedDB (tracks, playlists, handles, session)
-    fileLoader.js      — File System Access API + ID3v2 parser
-    googleDrive.js     — OAuth, Picker, Drive API
-  styles/
-    globals.css        — CSS vars, animations, responsive breakpoints
-```
+ ├── components/
+ ├── hooks/
+ ├── store/
+ ├── utils/
+ └── styles/
 
----
-
-## Local File Persistence
-
-Chrome/Edge only (File System Access API). After opening a folder:
-- File handles saved to IndexedDB
-- On refresh: `restoreHandles()` requests permission silently
-- User sees tracks immediately without re-picking
-- Firefox/Safari: must re-pick every session (no handle API)
-
----
-
-## Session Restore
-
-Last played track + queue + seek position saved to IndexedDB every 5 seconds while playing. Restored on next app load if within 7 days. Clears when user manually picks a new track.
-
----
-
-## Deployment
-
-```bash
+ 💾 Persistence
+Chrome / Edge
+File handles saved
+Auto-restore after refresh
+Safari / Firefox
+Manual re-import required
+🔁 Session Restore
+Saves every 5 seconds
+Restores:
+Track
+Queue
+Seek position
+Valid for 7 days
+🚀 Deployment
 npm run build
-# deploy dist/ to Vercel / Netlify / any static host
-```
 
-Vercel auto-deploys on push to main. No server needed — fully static.
+Deploy to:
 
----
+Vercel
+Netlify
+Any static host
+📊 Analytics
+Integrated with Vercel Analytics
+Tracks:
+Visitors
+Page views
+Engagement
+📜 License
 
-## License
+MIT License © 2026
 
-MIT
+💬 Final Note
+
+KRYPTUNES is built for people who want
+full control over their music without sacrificing privacy.
